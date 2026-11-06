@@ -96,6 +96,9 @@
 
     <section>
       <h2 class="font-handwritten text-2xl text-primary mb-3 px-1">나의 그림일기</h2>
+      <div class="flex justify-end mb-2">
+        <button onclick="deleteAllEntries()" class="text-sm text-red-500 hover:text-red-600 px-2 py-1">전체 삭제</button>
+      </div>
       <div id="emptyState" class="text-center py-12 text-caption">
         <p class="font-handwritten text-xl mb-2">아직 그림일기가 없어요</p>
         <p>첫 이야기를 적어보세요!</p>
@@ -191,8 +194,16 @@
     }
 
     function deleteEntry(id) {
-      if (!confirm('이 일기를 삭제할까요?')) return;
+      if (!confirm('이 일기를 삭제할까요?\n삭제하면 되돌릴 수 없습니다.')) return;
       entries = entries.filter(e => e.id !== id);
+      saveEntries();
+      renderEntries();
+    }
+
+    function deleteAllEntries() {
+      if (entries.length === 0) return;
+      if (!confirm('모든 일기를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.')) return;
+      entries = [];
       saveEntries();
       renderEntries();
     }
@@ -215,7 +226,7 @@
           <div class="relative">
             <img src="${entry.imageUrl}" alt="그림일기 그림" class="w-full h-48 object-cover bg-gray-100" loading="lazy"
                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22600%22%3E%3Crect fill=%22%23FFF8F0%22 width=%22100%25%22 height=%22100%25%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2224%22 text-anchor=%22middle%22 fill=%22%23FF7A59%22%3E그림을 불러오지 못했어요%3C/text%3E%3C/svg%3E'">
-            <button onclick="deleteEntry('${entry.id}')" class="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-500 text-xs px-2 py-1 rounded-full shadow" aria-label="삭제">삭제</button>
+            <button onclick="deleteEntry('${entry.id}')" class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-3 py-1.5 rounded-full shadow-lg" aria-label="삭제">삭제</button>
           </div>
           <div class="p-4">
             <time class="text-sm text-caption font-semibold">${formatDate(entry.date)}</time>
@@ -249,6 +260,7 @@
     });
 
     window.deleteEntry = deleteEntry;
+    window.deleteAllEntries = deleteAllEntries;
 
     loadEntries();
 
