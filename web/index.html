@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#FF7A59">
+  <meta name="description" content="일기를 쓰면 자동으로 아이 그림일기 같은 그림을 그려주는 앱">
+  <title>그림일기</title>
+  <meta property="og:title" content="그림일기 - 아이 그림일기 앱">
+  <meta property="og:description" content="일기를 쓰면 자동으로 귀여운 크레용 그림이 만들어지는 그림일기 앱">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://rjs198426-lang.github.io/picture-diary/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#FF7A59',
+            paper: '#FFF8F0',
+            card: '#FFFFFF',
+            ink: '#4A3C31',
+            caption: '#8B7355'
+          },
+          fontFamily: {
+            handwritten: ['Gaegu', 'cursive'],
+            body: ['Nunito', 'sans-serif']
+          },
+          borderRadius: {
+            card: '16px'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #FFF8F0;
+      background-image: radial-gradient(#ffe0cc 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .font-handwritten { font-family: 'Gaegu', cursive; }
+    .font-body { font-family: 'Nunito', sans-serif; }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(255, 122, 89, 0.08);
+      border: 1px solid #f0e6dc;
+    }
+    .diary-page {
+      background: #fffef9;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #f5ebe0;
+    }
+    textarea:focus, input:focus {
+      outline: none;
+      ring: 2px;
+      ring-color: #FF7A59;
+    }
+  </style>
+</head>
+<body class="font-body text-ink min-h-screen">
+  <header class="text-center py-6 px-4">
+    <h1 class="font-handwritten text-5xl text-primary font-bold">그림일기</h1>
+    <p class="text-caption mt-1">오늘의 이야기를 그림으로 남겨요 ✨</p>
+  </header>
+
+  <main class="max-w-md mx-auto px-4 pb-24">
+    <section class="card p-5 mb-6">
+      <h2 class="font-handwritten text-2xl text-primary mb-3">새 일기 쓰기</h2>
+      <div class="space-y-3">
+        <div>
+          <label for="entryDate" class="block text-sm text-caption mb-1">날짜</label>
+          <input type="date" id="entryDate" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-paper focus:border-primary">
+        </div>
+        <div>
+          <label for="entryContent" class="block text-sm text-caption mb-1">오늘의 이야기</label>
+          <textarea id="entryContent" rows="4" placeholder="예: 오늘은 가족과 함께 공원에 가서 피크닉을 했어요. 맛있는 샌드위치를 먹고 나무 아래에서 놀았어요."
+            class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-paper resize-none focus:border-primary"></textarea>
+        </div>
+        <button id="generateBtn" class="w-full bg-primary hover:bg-orange-500 text-white font-semibold py-3 rounded-card transition active:scale-[0.98]">
+          그림으로 만들기 ✨
+        </button>
+        <div id="loading" class="hidden text-center py-3 text-primary font-handwritten text-lg">
+          그림을 그리고 있어요... 잠시만 기다려 주세요! 🎨
+        </div>
+        <p id="errorMsg" class="hidden text-red-500 text-sm text-center"></p>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="font-handwritten text-2xl text-primary mb-3 px-1">나의 그림일기</h2>
+      <div id="emptyState" class="text-center py-12 text-caption">
+        <p class="font-handwritten text-xl mb-2">아직 그림일기가 없어요</p>
+        <p>첫 이야기를 적어보세요!</p>
+      </div>
+      <div id="diaryList" class="space-y-5"></div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'pictureDiaryEntries';
+    let entries = [];
+
+    const dateInput = document.getElementById('entryDate');
+    const contentInput = document.getElementById('entryContent');
+    const generateBtn = document.getElementById('generateBtn');
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('errorMsg');
+    const diaryList = document.getElementById('diaryList');
+    const emptyState = document.getElementById('emptyState');
+
+    dateInput.valueAsDate = new Date();
+
+    const SAMPLE_ENTRIES = [
+      {
+        id: 'sample-picnic',
+        date: '2026-11-05',
+        content: '오늘은 가족과 함께 공원에 가서 피크닉을 했어요. 맛있는 샌드위치와 과일을 먹고 나무 아래에서 놀았어요. 정말 즐거운 하루였어요!',
+        imageUrl: 'images/MkDOy.jpg',
+        createdAt: Date.now() - 86400000
+      },
+      {
+        id: 'sample-school',
+        date: '2026-11-04',
+        content: '학교에 가는 길이었어요. 해가 밝게 떠 있고 꽃들이 예쁘게 피어 있었어요. 친구들과 만나서 신나게 이야기하며 학교로 갔어요.',
+        imageUrl: 'images/jtPRr.jpg',
+        createdAt: Date.now() - 172800000
+      }
+    ];
+
+    function loadEntries() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          entries = JSON.parse(saved);
+        } else {
+          entries = [...SAMPLE_ENTRIES];
+          saveEntries();
+        }
+      } catch (e) {
+        entries = [...SAMPLE_ENTRIES];
+      }
+      renderEntries();
+    }
+
+    function saveEntries() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function createImagePrompt(content) {
+      return `A cute child's crayon drawing illustrating this story: ${content}. Simple colorful style like a 7-year-old's picture diary, smiling faces, paper texture, happy and warm atmosphere, colored pencil style`;
+    }
+
+    function generateImageUrl(content) {
+      const prompt = encodeURIComponent(createImagePrompt(content));
+      const seed = Math.floor(Math.random() * 100000);
+      return `https://image.pollinations.ai/prompt/${prompt}?width=800&height=600&nologo=true&seed=${seed}`;
+    }
+
+    function showLoading(show) {
+      loadingEl.classList.toggle('hidden', !show);
+      generateBtn.disabled = show;
+      generateBtn.textContent = show ? '그리는 중...' : '그림으로 만들기 ✨';
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.classList.remove('hidden');
+      setTimeout(() => errorEl.classList.add('hidden'), 4000);
+    }
+
+    function addEntry(content, date) {
+      const newEntry = {
+        id: 'entry-' + Date.now(),
+        date: date || new Date().toISOString().slice(0, 10),
+        content: content.trim(),
+        imageUrl: generateImageUrl(content),
+        createdAt: Date.now()
+      };
+      entries.unshift(newEntry);
+      saveEntries();
+      renderEntries();
+      contentInput.value = '';
+    }
+
+    function deleteEntry(id) {
+      if (!confirm('이 일기를 삭제할까요?')) return;
+      entries = entries.filter(e => e.id !== id);
+      saveEntries();
+      renderEntries();
+    }
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+    }
+
+    function renderEntries() {
+      if (entries.length === 0) {
+        emptyState.classList.remove('hidden');
+        diaryList.innerHTML = '';
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      diaryList.innerHTML = entries.map(entry => `
+        <article class="diary-page overflow-hidden" data-id="${entry.id}">
+          <div class="relative">
+            <img src="${entry.imageUrl}" alt="그림일기 그림" class="w-full h-48 object-cover bg-gray-100" loading="lazy"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22600%22%3E%3Crect fill=%22%23FFF8F0%22 width=%22100%25%22 height=%22100%25%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2224%22 text-anchor=%22middle%22 fill=%22%23FF7A59%22%3E그림을 불러오지 못했어요%3C/text%3E%3C/svg%3E'">
+            <button onclick="deleteEntry('${entry.id}')" class="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-500 text-xs px-2 py-1 rounded-full shadow" aria-label="삭제">삭제</button>
+          </div>
+          <div class="p-4">
+            <time class="text-sm text-caption font-semibold">${formatDate(entry.date)}</time>
+            <p class="mt-2 leading-relaxed whitespace-pre-wrap">${escapeHtml(entry.content)}</p>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    generateBtn.addEventListener('click', () => {
+      const content = contentInput.value.trim();
+      const date = dateInput.value;
+      if (!content) {
+        showError('오늘의 이야기를 적어주세요!');
+        contentInput.focus();
+        return;
+      }
+      showLoading(true);
+      errorEl.classList.add('hidden');
+
+      setTimeout(() => {
+        addEntry(content, date);
+        showLoading(false);
+      }, 800);
+    });
+
+    window.deleteEntry = deleteEntry;
+
+    loadEntries();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
